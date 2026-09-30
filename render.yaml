@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: tenderlens-api
+    runtime: docker
+    plan: free
+    rootDir: apps/api
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_DISABLE_PREPARED_STATEMENTS
+        value: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: DEMO_ACCESS_CODE
+        sync: false
+      - key: MAX_UPLOAD_BYTES
+        value: 10485760
+      - key: MAX_PDF_PAGES
+        value: 50
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: tender-pdfs
+      - key: EMBEDDING_PROVIDER
+        value: gemini
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-2
+      - key: EMBEDDING_DIMENSIONS
+        value: 768
+      - key: PGVECTOR_SCHEMA
+        value: extensions
+      - key: GEMINI_API_KEY
+        sync: false

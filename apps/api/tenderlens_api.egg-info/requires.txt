@@ -1,0 +1,15 @@
+aiofiles<25,>=24.1
+asyncpg<1,>=0.30
+fastapi<1,>=0.115
+pillow<13,>=11
+pydantic-settings<3,>=2.7
+pymupdf<2,>=1.25
+pytesseract<1,>=0.3.13
+python-multipart<1,>=0.0.20
+sqlalchemy[asyncio]<3,>=2.0.36
+uvicorn[standard]<1,>=0.34
+
+[dev]
+httpx<1,>=0.28
+pytest<9,>=8.3
+pytest-asyncio<1,>=0.25

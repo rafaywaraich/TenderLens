@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: tenderlens-api
+Version: 0.1.0
+Summary: TenderLens document ingestion API
+Requires-Python: >=3.12
+Requires-Dist: aiofiles<25,>=24.1
+Requires-Dist: asyncpg<1,>=0.30
+Requires-Dist: fastapi<1,>=0.115
+Requires-Dist: pillow<13,>=11
+Requires-Dist: pydantic-settings<3,>=2.7
+Requires-Dist: pymupdf<2,>=1.25
+Requires-Dist: pytesseract<1,>=0.3.13
+Requires-Dist: python-multipart<1,>=0.0.20
+Requires-Dist: sqlalchemy[asyncio]<3,>=2.0.36
+Requires-Dist: uvicorn[standard]<1,>=0.34
+Provides-Extra: dev
+Requires-Dist: httpx<1,>=0.28; extra == "dev"
+Requires-Dist: pytest<9,>=8.3; extra == "dev"
+Requires-Dist: pytest-asyncio<1,>=0.25; extra == "dev"

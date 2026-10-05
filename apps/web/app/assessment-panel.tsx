@@ -21,6 +21,10 @@ type Comparison = {
   status: "met" | "unmet" | "unknown";
   reason: string;
   profile_evidence: string;
+  profile_fields?: (keyof Profile)[];
+  entered_information?: { field: keyof Profile; value: string }[];
+  missing_information?: string;
+  suggested_input?: string;
   page_numbers: number[];
 };
 
@@ -54,6 +58,24 @@ const FIELDS: { key: keyof Profile; label: string; placeholder: string; max: num
   { key: "constraints", label: "Constraints and known gaps", placeholder: "Unavailable registrations, staffing limits, capacity, geographic restrictions, or unacceptable terms", max: 4000 },
 ];
 const PROFILE_KEY = "tenderlens-company-profile";
+const DEFAULT_FIELDS: Record<string, (keyof Profile)[]> = {
+  eligibility: ["registrations", "experience"],
+  mandatory_requirements: ["capabilities", "registrations", "available_documents"],
+  required_documents: ["available_documents"],
+  financial_conditions: ["financial_capacity"],
+  deliverables: ["capabilities", "experience", "constraints"],
+};
+
+function fieldLabel(key: string) {
+  return FIELDS.find((field) => field.key === key)?.label ?? key.replaceAll("_", " ");
+}
+
+function enteredInformation(item: Comparison, submitted: Profile | null) {
+  if (item.entered_information?.length) return item.entered_information;
+  const fields: (keyof Profile)[] = item.profile_fields?.length
+    ? item.profile_fields : DEFAULT_FIELDS[item.category] ?? ["capabilities"];
+  return fields.map((field) => ({ field, value: submitted?.[field] ?? "" }));
+}
 
 export default function AssessmentPanel({ apiUrl, documentId, accessCode, analysisReady, onCitation }: {
   apiUrl: string;
@@ -69,6 +91,7 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const active = useRef(true);
+  const profileEditor = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     active.current = true;
@@ -155,7 +178,19 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
   }
 
   const result = analysisReady && assessment?.status === "ready" ? assessment.content : null;
-  const draftChanged = !!result && JSON.stringify(profile) !== JSON.stringify(assessment?.profile);
+  const draftChanged = !!result && FIELDS.some(({ key }) =>
+    profile[key].trim() !== (assessment?.profile?.[key] ?? "").trim(),
+  );
+
+  function editRequirement(item: Comparison) {
+    if (profileEditor.current) profileEditor.current.open = true;
+    const first = item.profile_fields?.[0] ?? DEFAULT_FIELDS[item.category]?.[0] ?? "capabilities";
+    window.requestAnimationFrame(() => {
+      const input = document.getElementById(`profile-${first}`);
+      input?.focus({ preventScroll: true });
+      input?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
 
   return (
     <section className="bid-panel">
@@ -164,7 +199,7 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
         <h3>Does this tender fit your company?</h3>
         <p>Compare the analyzed requirements with your company profile. Missing information stays unverified.</p>
       </div>
-      <details className="profile-editor" open={!result}>
+      <details ref={profileEditor} className="profile-editor" open={!result}>
         <summary>Company profile {result ? "· edit and reassess" : "· add your details"}</summary>
         <form onSubmit={submit}>
           <div className="profile-grid">
@@ -212,9 +247,38 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
               <article className="comparison" key={item.requirement_id}>
                 <div className="comparison-heading"><strong>{item.label}</strong><span className={`match-status ${item.status}`}>{item.status === "unknown" ? "Unverified" : item.status === "met" ? "Matched" : "Gap"}</span></div>
                 <small>{item.category.replaceAll("_", " ")}{item.mandatory ? " · Required condition" : ""}</small>
-                <p>{item.requirement}</p><p className="comparison-reason">{item.reason}</p>
-                {item.profile_evidence && <blockquote>Company evidence: {item.profile_evidence}</blockquote>}
+                <dl className="requirement-gap-grid">
+                  <div className="requirement-gap-cell">
+                    <dt>What the tender requires</dt>
+                    <dd>{item.requirement}</dd>
+                  </div>
+                  <div className="requirement-gap-cell">
+                    <dt>What you entered</dt>
+                    <dd>
+                      {enteredInformation(item, assessment?.profile ?? null).map(({ field, value }) => (
+                        <div className="submitted-field" key={field}>
+                          <strong>{fieldLabel(field)}</strong>
+                          <span>{value || "Not provided"}</span>
+                        </div>
+                      ))}
+                    </dd>
+                  </div>
+                  <div className={`requirement-gap-cell gap-explanation ${item.status}`}>
+                    <dt>{item.status === "met" ? "Match / information gap" : "What is missing or different"}</dt>
+                    <dd>{item.missing_information || (item.status === "met"
+                      ? "No information gap identified for this requirement." : item.reason)}</dd>
+                  </div>
+                  <div className="requirement-gap-cell answer-template">
+                    <dt>How to answer · template</dt>
+                    <dd>{item.suggested_input || "Reassess company fit to generate a specific answer template for this requirement."}</dd>
+                    <p className="template-note">Replace placeholders with your actual details. If a qualification or document is unavailable, say so.</p>
+                  </div>
+                </dl>
+                <p className="comparison-reason"><strong>Assessment: </strong>{item.reason}</p>
+                <div className="comparison-actions">
                 <div className="citation-list">{item.page_numbers.map((page) => <button key={page} type="button" onClick={() => onCitation(page)}>Page {page}</button>)}</div>
+                  <button type="button" className="secondary-button" onClick={() => editRequirement(item)}>Update company details</button>
+                </div>
               </article>
             ))}
             {!result.comparisons.length && <p className="bid-notice">No assessable requirements were found. Review the original tender.</p>}

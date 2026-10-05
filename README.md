@@ -14,6 +14,7 @@ TenderLens is an evidence-first RFP intelligence workspace. It turns tender PDFs
 - Structured dates, eligibility, requirements, documents, financial terms, deliverables, and risks
 - Company profile form with optional browser saving
 - Bid / No Bid / Review Required assessment, requirement matches, evidence coverage, and citations
+- Per-requirement required vs submitted information, explicit gaps, and truthful answer templates
 - Local Ollama or hosted Gemini embeddings
 - Local filesystem or persistent Supabase Storage
 - Optional access-code protection for public demo uploads
@@ -120,6 +121,8 @@ Redeploy the Render API once `ALLOWED_ORIGINS` contains the exact Vercel origin.
 For protected operations send `X-Demo-Access-Code`. Public reads remain available so reviewers can inspect preloaded sample tenders without a code.
 
 ## Bid assessment
+
+Each comparison shows the tender condition, exact submitted values from the relevant company fields, what is missing or different, and a suggested answer template. Templates ask for truthful details with placeholders; they are not generated company credentials. **Update company details** opens and focuses the relevant profile field. Guidance is included in the same Gemini comparison call. Old assessments remain readable; reassess once to generate tender-specific templates. Company values always come from the saved assessment snapshot rather than the current edited draft.
 
 Select a processed document, complete **Analyze Tender**, then fill the company profile and run **Assess Bid / No Bid**. Save Profile keeps a reusable draft in this browser; running an assessment sends the profile to Gemini and persists a snapshot with the latest assessment for that document. Assessment reads require the demo code because they contain company information. This is a shared demo workspace, not separate user accounts. Do not submit confidential company information to a shared showcase.
 

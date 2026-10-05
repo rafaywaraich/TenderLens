@@ -110,6 +110,17 @@ class RequirementComparison(BaseModel):
     status: Literal["met", "unmet", "unknown"]
     reason: str = Field(min_length=1, max_length=3000)
     profile_evidence: str = Field(max_length=3000)
+    profile_fields: list[Literal[
+        "capabilities", "registrations", "experience", "financial_capacity",
+        "available_documents", "constraints",
+    ]] = Field(default_factory=list)
+    missing_information: str = Field(default="", max_length=3000)
+    suggested_input: str = Field(default="", max_length=3000)
+
+
+class EnteredProfileInfo(BaseModel):
+    field: str
+    value: str
 
 
 class AssessmentComparison(RequirementComparison):
@@ -118,6 +129,7 @@ class AssessmentComparison(RequirementComparison):
     requirement: str
     page_numbers: list[int]
     mandatory: bool
+    entered_information: list[EnteredProfileInfo] = Field(default_factory=list)
 
 
 class AssessmentContent(BaseModel):

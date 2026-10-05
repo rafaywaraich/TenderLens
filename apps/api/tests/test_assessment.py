@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app, get_session, settings, start_assessment
 from app.models import DocumentAnalysis, DocumentAssessment
-from app.schemas import AnalysisContent, CompanyProfile, RequirementComparison
+from app.schemas import AnalysisContent, AssessmentComparison, CompanyProfile, RequirementComparison
 from app.services import assessment as service
 
 
@@ -66,6 +66,47 @@ def test_empty_requirements_produce_review():
     result = service.score_assessment(profile(), [], [])
     assert result.recommendation == "review_required"
     assert result.score == result.coverage == 0
+
+
+def test_vague_profile_shows_actual_entry_specific_gap_and_blank_template():
+    company = CompanyProfile(name="Khan Steel", capabilities="Construction", registrations="All compliance passed")
+    match = RequirementComparison(
+        requirement_id="eligibility:0", status="unknown", reason="PEC category is not specified",
+        profile_evidence="All compliance passed", profile_fields=["registrations"],
+        missing_information="PEC category, registration codes and validity date are missing.",
+        suggested_input="PEC category: [actual category or not available]; codes: [actual codes]; valid until: [date].",
+    )
+    result = service.score_assessment(company, [requirement()], [match])
+    item = result.comparisons[0]
+    assert item.entered_information[0].value == "All compliance passed"
+    assert item.entered_information[0].field == "registrations"
+    assert "validity" in item.missing_information
+    assert "[actual category or not available]" in item.suggested_input
+    assert result.coverage == 0
+
+
+def test_legacy_assessment_result_deserializes_without_guidance_fields():
+    old_item = {**requirement(), "status": "unknown", "reason": "Registration details missing", "profile_evidence": ""}
+    item = AssessmentComparison.model_validate(old_item)
+    assert item.entered_information == []
+    assert item.missing_information == ""
+    assert item.suggested_input == ""
+
+
+def test_fabricated_unknown_excerpt_is_removed_from_guidance():
+    item = service.score_assessment(profile(), [requirement()], [
+        comparison(status="unknown", evidence="Made-up compliance statement"),
+    ]).comparisons[0]
+    assert item.profile_evidence == ""
+    assert "verifiable excerpt" in item.missing_information
+    assert item.entered_information[0].value == "No PEC registration"
+
+
+def test_evidence_field_is_included_even_when_model_picks_other_fields():
+    match = comparison(status="unmet", evidence="No PEC registration")
+    match.profile_fields = ["capabilities"]
+    item = service.score_assessment(profile(), [requirement()], [match]).comparisons[0]
+    assert {entry.field: entry.value for entry in item.entered_information}["registrations"] == "No PEC registration"
 
 
 def test_private_assessment_routes_require_access_code(monkeypatch):
@@ -181,6 +222,10 @@ async def test_provider_comparisons_preserve_server_citations(monkeypatch):
         async def post(self, url, headers, json):
             assert "generateContent" in url
             assert "Electrical maintenance" in json["contents"][0]["parts"][0]["text"]
+            required = json["generationConfig"]["responseSchema"]["properties"]["comparisons"]["items"]["required"]
+            assert "missing_information" in required
+            assert "suggested_input" in required
+            assert "profile_fields" in required
             return httpx.Response(200, request=httpx.Request("POST", url), json={
                 "candidates": [{"content": {"parts": [{"text": '{"comparisons":[{"requirement_id":"eligibility:0","status":"met","reason":"Supported capability","profile_evidence":"Electrical maintenance"}]}'}]}}],
             })

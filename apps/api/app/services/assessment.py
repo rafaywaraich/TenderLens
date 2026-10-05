@@ -14,6 +14,16 @@ from app.schemas import (
 settings = get_settings()
 GATE_CATEGORIES = {"eligibility", "mandatory_requirements", "required_documents", "financial_conditions"}
 CATEGORIES = (*sorted(GATE_CATEGORIES), "deliverables")
+PROFILE_FIELDS = [
+    "capabilities", "registrations", "experience", "financial_capacity", "available_documents", "constraints",
+]
+DEFAULT_PROFILE_FIELDS = {
+    "eligibility": ["registrations", "experience"],
+    "mandatory_requirements": ["capabilities", "registrations", "available_documents"],
+    "required_documents": ["available_documents"],
+    "financial_conditions": ["financial_capacity"],
+    "deliverables": ["capabilities", "experience", "constraints"],
+}
 
 
 def requirements_from_analysis(content: AnalysisContent) -> list[dict]:
@@ -39,15 +49,47 @@ def score_assessment(
     profile_text = " ".join(profile.model_dump().values()).casefold()
     for requirement in requirements:
         match = by_id.get(requirement["requirement_id"])
+        fields = (match.profile_fields if match else []) or DEFAULT_PROFILE_FIELDS.get(
+            requirement["category"], ["capabilities"]
+        )
+        fields = list(dict.fromkeys(fields))
         status, reason, evidence = "unknown", "Company information is insufficient to verify this requirement.", ""
+        missing = ""
+        suggested = ""
         if match:
             status, reason, evidence = match.status, match.reason, match.profile_evidence
+            missing, suggested = match.missing_information, match.suggested_input
             # Require a verbatim profile excerpt for a positive or negative classification.
-            if status != "unknown" and (not evidence.strip() or evidence.casefold() not in profile_text):
-                status, reason, evidence = "unknown", "No verifiable company profile evidence was supplied.", ""
+            if evidence.strip() and evidence.casefold() not in profile_text:
+                evidence = ""
+                status, reason = "unknown", "No verifiable company profile evidence was supplied."
+                missing = "The comparison did not identify a verifiable excerpt from your submitted profile. Add explicit details addressing the tender condition."
+            elif status != "unknown" and not evidence.strip():
+                status, reason = "unknown", "No verifiable company profile evidence was supplied."
+                missing = "Add explicit company details that support or contradict this tender condition."
         if not requirement["page_numbers"]:
             status, reason = "unknown", "Tender requirement has no page citation; verify the source first."
-        results.append(AssessmentComparison(**requirement, status=status, reason=reason, profile_evidence=evidence))
+            missing = "A tender page citation is missing. Verify the source requirement before updating company details."
+        if status == "met":
+            missing = "No information gap identified in the submitted profile for this requirement."
+        elif not missing.strip():
+            missing = reason
+        if not suggested.strip():
+            suggested = (
+                "Requirement: [identify this tender condition]; Company position: [actual details or not available]; "
+                "Supporting document/reference: [name, validity or date if applicable]."
+            )
+        if evidence.strip():
+            fields = list(dict.fromkeys([
+                *fields,
+                *(field for field in PROFILE_FIELDS if evidence.casefold() in getattr(profile, field).casefold()),
+            ]))
+        entered = [{"field": field, "value": getattr(profile, field)} for field in fields]
+        results.append(AssessmentComparison(
+            **requirement, status=status, reason=reason, profile_evidence=evidence,
+            profile_fields=fields, entered_information=entered,
+            missing_information=missing, suggested_input=suggested,
+        ))
 
     total = len(results)
     met = sum(item.status == "met" for item in results)
@@ -92,8 +134,14 @@ async def compare_requirements(profile: CompanyProfile, content: AnalysisContent
             "status": {"type": "string", "enum": ["met", "unmet", "unknown"]},
             "reason": {"type": "string"},
             "profile_evidence": {"type": "string"},
+            "profile_fields": {"type": "array", "items": {"type": "string", "enum": PROFILE_FIELDS}},
+            "missing_information": {"type": "string"},
+            "suggested_input": {"type": "string"},
         },
-        "required": ["requirement_id", "status", "reason", "profile_evidence"],
+        "required": [
+            "requirement_id", "status", "reason", "profile_evidence", "profile_fields",
+            "missing_information", "suggested_input",
+        ],
     }
     prompt = (
         "Compare every identified tender requirement against the supplied company profile. "
@@ -104,6 +152,14 @@ async def compare_requirements(profile: CompanyProfile, content: AnalysisContent
         "Missing information, ambiguous units/currencies, or partially covered conditions mean unknown. "
         "Never infer registration, tax compliance, financial capacity, documents, or experience. "
         "For met/unmet, profile_evidence MUST be a verbatim excerpt from the profile. "
+        "For unknown, quote any relevant vague entry verbatim in profile_evidence, or use an empty string. "
+        "profile_fields must list the company fields that relate to this requirement, including relevant constraints. "
+        "missing_information must describe the specific missing attributes or actual mismatch: e.g. registration "
+        "category, codes, validity, amount/currency, security arrangement, project references, or delivery location. "
+        "Distinguish a confirmed capability gap from missing details. For met, state that no gap was identified. "
+        "suggested_input must be a tender-specific blank answer template using [placeholders], "
+        "never invented company credentials or a prefilled claim of compliance. Include 'not available' "
+        "or a truthful Yes/No option when appropriate. Request only details relevant to the tender condition. "
         "Do not generate scores, recommendations, page numbers or new requirements.\n"
         f"COMPANY PROFILE:\n{profile.model_dump_json()}\n"
         f"TENDER REQUIREMENTS:\n{json.dumps(requirements)}"

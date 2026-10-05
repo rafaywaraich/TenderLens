@@ -525,11 +525,11 @@ export default function Home() {
             </section>
           )}
           {selectedId && (
-            <AssessmentPanel key={selectedId} apiUrl={API_URL} documentId={selectedId}
+            <AssessmentPanel key={`assessment-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
               accessCode={accessCode} analysisReady={analysis?.document_id === selectedId && analysis.status === "ready"}
               onCitation={setTargetPage} />
           )}
-          {selectedId && <QuestionPanel key={selectedId} apiUrl={API_URL} documentId={selectedId}
+          {selectedId && <QuestionPanel key={`questions-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
             accessCode={accessCode} ready={selectedDocument?.status === "ready"}
             onCitation={setTargetPage} />}
           <div className="pages">

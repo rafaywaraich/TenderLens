@@ -208,11 +208,11 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
                 <span>{label}{["name", "capabilities"].includes(key) ? " *" : ""}</span>
                 {key === "name" ? (
                   <input id={`profile-${key}`} value={profile[key]} maxLength={max} required placeholder={placeholder}
-                    onChange={(e) => { setProfile({ ...profile, [key]: e.target.value }); setSaved(false); }} />
+                    onChange={(e) => { const value = e.target.value; setProfile((current) => ({ ...current, [key]: value })); setSaved(false); }} />
                 ) : (
                   <textarea id={`profile-${key}`} value={profile[key]} maxLength={max} rows={3}
                     required={key === "capabilities"} placeholder={placeholder}
-                    onChange={(e) => { setProfile({ ...profile, [key]: e.target.value }); setSaved(false); }} />
+                    onChange={(e) => { const value = e.target.value; setProfile((current) => ({ ...current, [key]: value })); setSaved(false); }} />
                 )}
               </label>
             ))}

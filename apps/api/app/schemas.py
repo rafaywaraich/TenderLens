@@ -38,6 +38,34 @@ class HealthRead(BaseModel):
     status: str
 
 
+class QuestionRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    question: str = Field(min_length=3, max_length=200)
+
+
+class AnswerCitation(BaseModel):
+    page_number: int = Field(ge=1)
+    quote: str = Field(min_length=10, max_length=1200)
+
+
+class AnswerPoint(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    citations: list[AnswerCitation] = Field(min_length=1, max_length=5)
+
+
+class AnswerContent(BaseModel):
+    status: Literal["answered", "partial", "not_found"]
+    points: list[AnswerPoint] = Field(max_length=12)
+
+
+class QuestionAnswerRead(AnswerContent):
+    document_id: str
+    question: str
+    searched_pages: list[int]
+    retrieval_method: str
+    used_company_assessment: bool = False
+
+
 class ReadinessRead(BaseModel):
     status: str
     database: str

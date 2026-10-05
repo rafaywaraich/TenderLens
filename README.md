@@ -115,6 +115,7 @@ Redeploy the Render API once `ALLOWED_ORIGINS` contains the exact Vercel origin.
 | `GET` | `/documents/{id}/analysis` | Read analysis state and evidence-backed findings |
 | `POST` | `/documents/{id}/assessment` | Compare a company profile to completed analysis; access code protected |
 | `GET` | `/documents/{id}/assessment` | Read saved assessment and submitted profile; access code protected |
+| `POST` | `/documents/{id}/questions` | Ask a document-scoped question with quote-checked citations; access code protected |
 | `GET` | `/search?q=insurance` | Hybrid evidence search |
 | `GET` | `/embeddings/health` | Check the configured embedding provider |
 
@@ -129,6 +130,16 @@ Select a processed document, complete **Analyze Tender**, then fill the company 
 Gemini classifies each analyzed requirement as met, unmet, or unknown. Positive and negative matches must include a verbatim company-profile excerpt; missing evidence remains unknown. Requirement text and page citations come from the existing analysis. The server computes the score as met / total and evidence coverage as (met + unmet) / total. Eligibility, mandatory requirements, required documents and financial conditions are treated conservatively as required conditions. A confirmed required-condition gap yields No Bid. Unknown required conditions, coverage below 80%, or fewer than 75% matches yield Review Required. Otherwise the result is Bid. This is a provisional fit check based on analyzed clauses, not full compliance verification or a probability of winning; review original clauses, submission deadlines, and commercial risks separately.
 
 Reanalyzing or reprocessing invalidates the previous assessment. Concurrent analysis/reprocessing is blocked while an assessment runs. Interrupted assessment jobs become retryable on API restart. No new provider or environment variable is needed: the same `GEMINI_API_KEY` and `ANALYSIS_MODEL` are reused.
+
+## Evidence-based Q&A
+
+Select a processed PDF and use **Ask this tender**. Send `{"question":"What are the staffing requirements?"}` to the questions endpoint with the demo code. Questions are limited to 200 characters. Hybrid retrieval selects up to six pages from that document only; natural-language keyword fallback remains available when embeddings fail or time out. Up to 8,000 characters per selected page are sent to the existing Gemini analysis model. No new environment variables, tables or providers are required.
+
+Answers contain concise points and clickable page citations with source quotes. The server rejects any point whose citations are outside the retrieved pages or whose quotes do not occur in the text sent to the model. This checks quote provenance, not semantic entailment: users must still review whether the quote fully supports the answer. Unsupported responses become `not_found`; partially supported responses become `partial`. No evidence found means retrieval did not support the question, not that a condition is absent from the complete tender.
+
+If a completed company assessment exists, its saved profile and result are included as self-reported context; unsaved form changes are not used. Do not submit confidential details to the shared demo. Answers are temporary and not persisted. Provider calls are access-code protected when configured, with at most two simultaneous Q&A requests per API process. This is not a daily quota or a production rate limiter. Free-tier provider quotas still apply.
+
+Smoke test: ask a staffing question, open a citation, ask an unrelated question, then switch PDFs and confirm the answer resets. For company gaps, run an assessment first. Reprocessing clears the visible answer. Closing the page cancels the browser request but may not stop an already-started provider call.
 
 ## Tests
 

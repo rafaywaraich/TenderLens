@@ -2,6 +2,7 @@
 
 import { ChangeEvent, FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import AssessmentPanel from "./assessment-panel";
+import QuestionPanel from "./question-panel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const MAX_UPLOAD_MB = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ?? "10");
@@ -528,6 +529,9 @@ export default function Home() {
               accessCode={accessCode} analysisReady={analysis?.document_id === selectedId && analysis.status === "ready"}
               onCitation={setTargetPage} />
           )}
+          {selectedId && <QuestionPanel key={selectedId} apiUrl={API_URL} documentId={selectedId}
+            accessCode={accessCode} ready={selectedDocument?.status === "ready"}
+            onCitation={setTargetPage} />}
           <div className="pages">
             {pages.map((page) => (
               <article className="page" id={`page-${page.page_number}`} key={page.page_number}>

@@ -24,6 +24,8 @@ from app.schemas import (
     PageRead,
     ReadinessRead,
     SearchResultRead,
+    QuestionRequest,
+    QuestionAnswerRead,
 )
 from app.services.analysis import analyze_document
 from app.services.assessment import assess_document
@@ -31,9 +33,11 @@ from app.services.embeddings import EmbeddingUnavailableError, embed_query, embe
 from app.services.pdf import process_document, validate_pdf
 from app.services.search import fuse_ranked_results, keyword_search, semantic_search
 from app.services.storage import delete_pdf, store_pdf
+from app.services.qa import QuestionUnavailableError, generate_answer, retrieve_question_pages
 
 
 settings = get_settings()
+question_slots = asyncio.Semaphore(2)
 
 
 @asynccontextmanager
@@ -319,6 +323,39 @@ async def start_assessment(
     await session.refresh(assessment)
     background_tasks.add_task(assess_document, document_id, snapshot)
     return assessment
+
+
+@app.post("/documents/{document_id}/questions", response_model=QuestionAnswerRead)
+async def answer_document_question(
+    document_id: str,
+    request: QuestionRequest,
+    _: None = Depends(require_demo_access),
+    session: AsyncSession = Depends(get_session),
+) -> QuestionAnswerRead:
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if document.status != "ready":
+        raise HTTPException(status_code=409, detail="Wait for document processing to finish")
+    if question_slots.locked():
+        raise HTTPException(status_code=429, detail="Q&A is busy. Please retry shortly.")
+    async with question_slots:
+        pages, method = await retrieve_question_pages(session, document_id, request.question)
+        assessment = await session.get(DocumentAssessment, document_id)
+        context = None
+        if assessment is not None and assessment.status == "ready" and assessment.content:
+            context = {"profile": assessment.profile, "assessment": assessment.content}
+        # Release the read transaction/connection before waiting for generation.
+        await session.rollback()
+        try:
+            content = await generate_answer(request.question, pages, context)
+        except QuestionUnavailableError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return QuestionAnswerRead(
+            **content.model_dump(), document_id=document_id, question=request.question,
+            searched_pages=[page.page_number for page in pages], retrieval_method=method,
+            used_company_assessment=context is not None,
+        )
 
 
 @app.get("/search", response_model=list[SearchResultRead])

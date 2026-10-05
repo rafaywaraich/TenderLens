@@ -38,6 +38,31 @@ type SearchResult = {
   semantic_similarity: number | null;
 };
 
+type AnalysisFinding = {
+  label: string;
+  detail: string;
+  page_numbers: number[];
+};
+
+type AnalysisContent = {
+  overview: AnalysisFinding;
+  important_dates: AnalysisFinding[];
+  eligibility: AnalysisFinding[];
+  mandatory_requirements: AnalysisFinding[];
+  required_documents: AnalysisFinding[];
+  financial_conditions: AnalysisFinding[];
+  deliverables: AnalysisFinding[];
+  risks: AnalysisFinding[];
+};
+
+type DocumentAnalysis = {
+  document_id: string;
+  status: "not_started" | "queued" | "processing" | "ready" | "failed";
+  error_message: string | null;
+  model: string | null;
+  content: AnalysisContent | null;
+};
+
 function highlightedSnippet(snippet: string): ReactNode[] {
   return snippet.split(/(\[\[\[.*?\]\]\])/g).map((part, index) =>
     part.startsWith("[[[") && part.endsWith("]]]") ? (
@@ -62,6 +87,8 @@ export default function Home() {
   const [targetPage, setTargetPage] = useState<number | null>(null);
   const [accessCode, setAccessCode] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [analysis, setAnalysis] = useState<DocumentAnalysis | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const selectedDocument = documents.find((document) => document.id === selectedId);
 
   useEffect(() => {
@@ -106,6 +133,30 @@ export default function Home() {
       .then(setPages)
       .catch((reason) => setError(reason.message));
   }, [selectedId, documents]);
+
+  const loadAnalysis = useCallback(async (documentId: string) => {
+    const response = await fetch(`${API_URL}/documents/${documentId}/analysis`, { cache: "no-store" });
+    if (!response.ok) throw new Error("Could not load tender analysis");
+    setAnalysis(await response.json());
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setAnalysis(null);
+      return;
+    }
+    setAnalysis(null);
+    loadAnalysis(selectedId).catch((reason) => setError(reason.message));
+  }, [selectedId, loadAnalysis]);
+
+  useEffect(() => {
+    if (!selectedId || !analysis || !["queued", "processing"].includes(analysis.status)) return;
+    const timer = window.setTimeout(
+      () => loadAnalysis(selectedId).catch((reason) => setError(reason.message)),
+      2500,
+    );
+    return () => window.clearTimeout(timer);
+  }, [analysis, selectedId, loadAnalysis]);
 
   useEffect(() => {
     if (targetPage === null || pages.length === 0) return;
@@ -182,9 +233,30 @@ export default function Home() {
         headers: protectedHeaders(),
       });
       if (!response.ok) throw new Error("Could not reprocess the document");
+      setAnalysis(null);
       await loadDocuments();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not reprocess the document");
+    }
+  }
+
+  async function analyzeSelected() {
+    if (!selectedId) return;
+    setAnalyzing(true);
+    setError(null);
+    try {
+      window.sessionStorage.setItem("tenderlens-access-code", accessCode);
+      const response = await fetch(`${API_URL}/documents/${selectedId}/analysis`, {
+        method: "POST",
+        headers: protectedHeaders(),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.detail ?? "Could not analyze this tender");
+      setAnalysis(body);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not analyze this tender");
+    } finally {
+      setAnalyzing(false);
     }
   }
 
@@ -209,6 +281,7 @@ export default function Home() {
       setSearchResults((results) => results.filter((result) => result.document_id !== selectedId));
       setSelectedId(null);
       setPages([]);
+      setAnalysis(null);
       await loadDocuments();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not delete the document");
@@ -339,6 +412,23 @@ export default function Home() {
               {selectedId && (
                 <>
                   <button
+                    className="analysis-button"
+                    disabled={
+                      analyzing ||
+                      selectedDocument?.status !== "ready" ||
+                      analysis?.status === "queued" ||
+                      analysis?.status === "processing"
+                    }
+                    onClick={analyzeSelected}
+                    type="button"
+                  >
+                    {analysis?.status === "queued" || analysis?.status === "processing"
+                      ? "Analyzing…"
+                      : analysis?.status === "ready"
+                        ? "Analyze again"
+                        : "Analyze tender"}
+                  </button>
+                  <button
                     className="danger-button"
                     disabled={deleting || selectedDocument?.status === "queued" || selectedDocument?.status === "processing"}
                     onClick={deleteSelected}
@@ -357,6 +447,80 @@ export default function Home() {
           {!selectedId && <p className="empty centered">Select a document to inspect its page text.</p>}
           {selectedId && pages.length === 0 && (
             <p className="empty centered">Processing the document or no extractable pages found yet.</p>
+          )}
+          {selectedId && analysis?.status === "not_started" && selectedDocument?.status === "ready" && (
+            <div className="analysis-empty">
+              <span className="eyebrow">Tender intelligence</span>
+              <strong>Turn extracted pages into an evidence-backed procurement brief.</strong>
+              <p>Analyze dates, eligibility, mandatory requirements, documents, financial terms, deliverables, and risks.</p>
+            </div>
+          )}
+          {analysis && ["queued", "processing"].includes(analysis.status) && (
+            <div className="analysis-progress">
+              <span className="analysis-pulse" />
+              <div>
+                <strong>Gemini is analyzing this tender</strong>
+                <p>Reviewing extracted evidence and validating page citations. Free-tier processing may take a minute.</p>
+              </div>
+            </div>
+          )}
+          {analysis?.status === "failed" && (
+            <div className="analysis-failed">
+              <strong>Analysis needs another attempt</strong>
+              <p>{analysis.error_message ?? "The analysis job did not complete."}</p>
+            </div>
+          )}
+          {analysis?.status === "ready" && analysis.content && (
+            <section className="analysis-panel">
+              <div className="analysis-heading">
+                <div>
+                  <span className="eyebrow">Tender intelligence</span>
+                  <h3>{analysis.content.overview.label}</h3>
+                  <p>{analysis.content.overview.detail}</p>
+                </div>
+                <div className="citation-list">
+                  {analysis.content.overview.page_numbers.map((pageNumber) => (
+                    <button key={pageNumber} onClick={() => setTargetPage(pageNumber)} type="button">
+                      Page {pageNumber}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {(
+                [
+                  ["Important dates", analysis.content.important_dates],
+                  ["Eligibility", analysis.content.eligibility],
+                  ["Mandatory requirements", analysis.content.mandatory_requirements],
+                  ["Required documents", analysis.content.required_documents],
+                  ["Financial conditions", analysis.content.financial_conditions],
+                  ["Deliverables", analysis.content.deliverables],
+                  ["Risks and red flags", analysis.content.risks],
+                ] as [string, AnalysisFinding[]][]
+              ).map(([title, findings]) => (
+                <div className="analysis-section" key={title}>
+                  <div className="analysis-section-title">
+                    <h4>{title}</h4>
+                    <span>{findings.length}</span>
+                  </div>
+                  {findings.length === 0 && <p className="analysis-none">No supported findings.</p>}
+                  <div className="finding-grid">
+                    {findings.map((finding, index) => (
+                      <article className="finding" key={`${title}-${index}`}>
+                        <strong>{finding.label}</strong>
+                        <p>{finding.detail}</p>
+                        <div className="citation-list">
+                          {finding.page_numbers.map((pageNumber) => (
+                            <button key={pageNumber} onClick={() => setTargetPage(pageNumber)} type="button">
+                              Page {pageNumber}
+                            </button>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </section>
           )}
           <div className="pages">
             {pages.map((page) => (

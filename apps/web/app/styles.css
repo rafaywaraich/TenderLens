@@ -98,6 +98,8 @@ aside { border-right: 1px solid var(--line); background: #0d1714; }
 .section-actions { display: flex; align-items: center; gap: 8px; }
 .secondary-button { border: 1px solid #3b6352; border-radius: 8px; padding: 6px 10px; background: transparent; color: var(--accent); font-size: 12px; font-weight: 700; cursor: pointer; }
 .secondary-button:hover { background: var(--accent-dark); }
+.analysis-button { border: 0; border-radius: 8px; padding: 7px 11px; background: var(--accent); color: #062218; font-size: 12px; font-weight: 800; cursor: pointer; }
+.analysis-button:disabled { cursor: not-allowed; opacity: 0.45; }
 .danger-button { border: 1px solid #75463f; border-radius: 8px; padding: 6px 10px; background: transparent; color: #ff9d8f; font-size: 12px; font-weight: 700; cursor: pointer; }
 .danger-button:hover:not(:disabled) { background: #2d1917; }
 .danger-button:disabled { cursor: not-allowed; opacity: 0.45; }
@@ -110,6 +112,31 @@ aside { border-right: 1px solid var(--line); background: #0d1714; }
 .status.ready { color: var(--accent); }
 .status.failed { color: var(--danger); }
 .pages-panel { min-width: 0; }
+.analysis-empty, .analysis-progress, .analysis-failed { margin: 18px 18px 0; border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: #0c1513; }
+.analysis-empty { display: grid; gap: 7px; }
+.analysis-empty strong { font-size: 17px; }
+.analysis-empty p, .analysis-progress p, .analysis-failed p { margin: 0; color: var(--muted); line-height: 1.5; }
+.analysis-progress { display: flex; gap: 13px; align-items: flex-start; }
+.analysis-pulse { width: 11px; height: 11px; margin-top: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 rgba(89, 230, 167, 0.55); animation: analysis-pulse 1.8s infinite; }
+@keyframes analysis-pulse { 70% { box-shadow: 0 0 0 10px rgba(89, 230, 167, 0); } 100% { box-shadow: 0 0 0 0 rgba(89, 230, 167, 0); } }
+.analysis-failed { border-color: #693c35; background: #2d1917; }
+.analysis-failed strong { color: #ffc3b9; }
+.analysis-panel { margin: 18px 18px 4px; border: 1px solid #315646; border-radius: 16px; overflow: hidden; background: #0b1612; }
+.analysis-heading { display: flex; justify-content: space-between; gap: 24px; padding: 20px; background: linear-gradient(135deg, rgba(31, 81, 60, 0.65), rgba(12, 21, 19, 0.4)); }
+.analysis-heading h3 { margin-bottom: 7px; font-size: 20px; }
+.analysis-heading p { max-width: 780px; margin: 0; color: #c9d8d2; line-height: 1.55; }
+.analysis-section { padding: 18px 20px; border-top: 1px solid var(--line); }
+.analysis-section-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+.analysis-section-title h4 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; }
+.analysis-section-title span { display: grid; min-width: 24px; height: 24px; place-items: center; border-radius: 999px; background: var(--panel-strong); color: var(--muted); font-size: 11px; }
+.finding-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.finding { border: 1px solid var(--line); border-radius: 11px; padding: 13px; background: #101b18; }
+.finding strong { color: var(--text); }
+.finding p { margin: 7px 0 11px; color: #b9cbc4; font-size: 13px; line-height: 1.5; }
+.citation-list { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+.citation-list button { border: 1px solid #3b6352; border-radius: 999px; padding: 4px 8px; background: var(--accent-dark); color: #bcebd5; font-size: 11px; font-weight: 700; cursor: pointer; }
+.citation-list button:hover { border-color: var(--accent); }
+.analysis-none { margin: 0; color: var(--muted); font-size: 13px; }
 .pages { display: grid; gap: 14px; padding: 18px; }
 .page { overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: #0c1513; }
 .page-header { display: flex; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
@@ -125,5 +152,7 @@ pre { max-height: 260px; margin: 0; padding: 16px; overflow: auto; color: #c9d8d
   .search-bar, .search-summary { align-items: stretch; flex-direction: column; }
   aside { border-right: 0; border-bottom: 1px solid var(--line); }
   header { margin-bottom: 36px; }
+  .analysis-heading { flex-direction: column; }
+  .finding-grid { grid-template-columns: 1fr; }
 }
 

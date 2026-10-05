@@ -10,6 +10,8 @@ TenderLens is an evidence-first RFP intelligence workspace. It turns tender PDFs
 - PostgreSQL full-text search and pgvector semantic retrieval
 - Reciprocal-rank fusion for hybrid results
 - Clickable citations back to the extracted page
+- One-click Gemini tender analysis with evidence-backed page citations
+- Structured dates, eligibility, requirements, documents, financial terms, deliverables, and risks
 - Local Ollama or hosted Gemini embeddings
 - Local filesystem or persistent Supabase Storage
 - Optional access-code protection for public demo uploads
@@ -26,6 +28,7 @@ TenderLens is an evidence-first RFP intelligence workspace. It turns tender PDFs
 | Embeddings | Ollama `nomic-embed-text` | Gemini `gemini-embedding-2` at 768 dimensions |
 
 The API is provider-driven through environment variables. No cloud credentials are required for local Docker development.
+Tender analysis uses Gemini generation in both environments; add `GEMINI_API_KEY` locally only when testing the Analyze Tender feature.
 
 ## Run locally
 
@@ -105,6 +108,8 @@ Redeploy the Render API once `ALLOWED_ORIGINS` contains the exact Vercel origin.
 | `DELETE` | `/documents/{id}` | Delete the PDF and all derived evidence; access code protected when configured |
 | `POST` | `/documents/{id}/reprocess` | Retry extraction; access code protected when configured |
 | `GET` | `/documents/{id}/pages` | Read page-level evidence |
+| `POST` | `/documents/{id}/analysis` | Start or rerun structured tender analysis; access code protected |
+| `GET` | `/documents/{id}/analysis` | Read analysis state and evidence-backed findings |
 | `GET` | `/search?q=insurance` | Hybrid evidence search |
 | `GET` | `/embeddings/health` | Check the configured embedding provider |
 

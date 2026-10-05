@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -32,6 +32,9 @@ class Document(Base):
     pages: Mapped[list["DocumentPage"]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
+    analysis: Mapped["DocumentAnalysis | None"] = relationship(
+        back_populates="document", cascade="all, delete-orphan", uselist=False
+    )
 
 
 class DocumentPage(Base):
@@ -48,4 +51,22 @@ class DocumentPage(Base):
     ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="pages")
+
+
+class DocumentAnalysis(Base):
+    __tablename__ = "document_analyses"
+
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True
+    )
+    status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    content: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    document: Mapped[Document] = relationship(back_populates="analysis")
 

@@ -38,3 +38,5 @@ services:
         value: extensions
       - key: GEMINI_API_KEY
         sync: false
+      - key: ANALYSIS_MODEL
+        value: gemini-2.5-flash-lite

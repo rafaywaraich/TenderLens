@@ -13,8 +13,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import engine, get_session, init_db
-from app.models import Document, DocumentPage
-from app.schemas import DocumentRead, EmbeddingHealthRead, HealthRead, PageRead, ReadinessRead, SearchResultRead
+from app.models import Document, DocumentAnalysis, DocumentPage
+from app.schemas import (
+    DocumentAnalysisRead,
+    DocumentRead,
+    EmbeddingHealthRead,
+    HealthRead,
+    PageRead,
+    ReadinessRead,
+    SearchResultRead,
+)
+from app.services.analysis import analyze_document
 from app.services.embeddings import EmbeddingUnavailableError, embed_query, embedding_health
 from app.services.pdf import process_document, validate_pdf
 from app.services.search import fuse_ranked_results, keyword_search, semantic_search
@@ -179,6 +188,9 @@ async def reprocess_document(
 
     storage_key = document.storage_key or f"{document_id}/original.pdf"
 
+    existing_analysis = await session.get(DocumentAnalysis, document_id)
+    if existing_analysis is not None:
+        await session.delete(existing_analysis)
     document.status = "queued"
     document.error_message = None
     await session.commit()
@@ -199,6 +211,51 @@ async def list_document_pages(
         .order_by(DocumentPage.page_number)
     )
     return list(result)
+
+
+@app.get("/documents/{document_id}/analysis", response_model=DocumentAnalysisRead)
+async def get_document_analysis(
+    document_id: str, session: AsyncSession = Depends(get_session)
+) -> DocumentAnalysis | DocumentAnalysisRead:
+    if await session.get(Document, document_id) is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    analysis = await session.get(DocumentAnalysis, document_id)
+    if analysis is None:
+        return DocumentAnalysisRead(document_id=document_id, status="not_started")
+    return analysis
+
+
+@app.post(
+    "/documents/{document_id}/analysis",
+    response_model=DocumentAnalysisRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def start_document_analysis(
+    document_id: str,
+    background_tasks: BackgroundTasks,
+    _: None = Depends(require_demo_access),
+    session: AsyncSession = Depends(get_session),
+) -> DocumentAnalysis:
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if document.status != "ready":
+        raise HTTPException(status_code=409, detail="Wait for document processing to finish")
+
+    analysis = await session.get(DocumentAnalysis, document_id)
+    if analysis is not None and analysis.status in {"queued", "processing"}:
+        raise HTTPException(status_code=409, detail="Tender analysis is already running")
+    if analysis is None:
+        analysis = DocumentAnalysis(document_id=document_id)
+        session.add(analysis)
+    analysis.status = "queued"
+    analysis.error_message = None
+    analysis.content = None
+    analysis.model = settings.analysis_model
+    await session.commit()
+    await session.refresh(analysis)
+    background_tasks.add_task(analyze_document, document_id)
+    return analysis
 
 
 @app.get("/search", response_model=list[SearchResultRead])

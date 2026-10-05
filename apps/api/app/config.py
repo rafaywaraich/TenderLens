@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     embedding_provider: str = "ollama"
     embedding_model: str = "nomic-embed-text"
     gemini_api_key: str | None = None
-    analysis_model: str = "gemini-2.5-flash-lite"
+    analysis_model: str = "gemini-3.5-flash-lite"
     analysis_max_chars: int = 120000
     analysis_page_max_chars: int = 6000
     embedding_dimensions: int = 768

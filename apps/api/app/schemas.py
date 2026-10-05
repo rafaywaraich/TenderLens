@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -87,6 +88,55 @@ class DocumentAnalysisRead(BaseModel):
     model: str | None = None
     content: AnalysisContent | None = None
     created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CompanyProfile(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    name: str = Field(min_length=1, max_length=200)
+    capabilities: str = Field(min_length=1, max_length=6000)
+    registrations: str = Field(default="", max_length=4000)
+    experience: str = Field(default="", max_length=4000)
+    financial_capacity: str = Field(default="", max_length=4000)
+    available_documents: str = Field(default="", max_length=4000)
+    constraints: str = Field(default="", max_length=4000)
+
+
+class RequirementComparison(BaseModel):
+    requirement_id: str
+    status: Literal["met", "unmet", "unknown"]
+    reason: str = Field(min_length=1, max_length=3000)
+    profile_evidence: str = Field(max_length=3000)
+
+
+class AssessmentComparison(RequirementComparison):
+    category: str
+    label: str
+    requirement: str
+    page_numbers: list[int]
+    mandatory: bool
+
+
+class AssessmentContent(BaseModel):
+    company_name: str
+    recommendation: Literal["bid", "no_bid", "review_required"]
+    score: int
+    coverage: int
+    summary: str
+    comparisons: list[AssessmentComparison]
+    evaluated_on: str
+
+
+class AssessmentRead(BaseModel):
+    document_id: str
+    status: str
+    error_message: str | None = None
+    model: str | None = None
+    profile: CompanyProfile | None = None
+    content: AssessmentContent | None = None
     updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)

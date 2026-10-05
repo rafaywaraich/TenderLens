@@ -98,6 +98,13 @@ async def init_db() -> None:
                 "AND updated_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes'"
             )
         )
+        await connection.execute(
+            text(
+                "UPDATE document_assessments SET status = 'failed', "
+                "error_message = 'Assessment was interrupted; run assessment again' "
+                "WHERE status IN ('queued', 'processing')"
+            )
+        )
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:

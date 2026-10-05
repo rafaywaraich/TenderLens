@@ -35,6 +35,9 @@ class Document(Base):
     analysis: Mapped["DocumentAnalysis | None"] = relationship(
         back_populates="document", cascade="all, delete-orphan", uselist=False
     )
+    assessment: Mapped["DocumentAssessment | None"] = relationship(
+        back_populates="document", cascade="all, delete-orphan", uselist=False
+    )
 
 
 class DocumentPage(Base):
@@ -69,4 +72,22 @@ class DocumentAnalysis(Base):
     )
 
     document: Mapped[Document] = relationship(back_populates="analysis")
+
+
+class DocumentAssessment(Base):
+    __tablename__ = "document_assessments"
+
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True
+    )
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    profile: Mapped[dict] = mapped_column(JSON)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    content: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    document: Mapped[Document] = relationship(back_populates="assessment")
 

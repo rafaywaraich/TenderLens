@@ -12,6 +12,8 @@ TenderLens is an evidence-first RFP intelligence workspace. It turns tender PDFs
 - Clickable citations back to the extracted page
 - One-click Gemini tender analysis with evidence-backed page citations
 - Structured dates, eligibility, requirements, documents, financial terms, deliverables, and risks
+- Company profile form with optional browser saving
+- Bid / No Bid / Review Required assessment, requirement matches, evidence coverage, and citations
 - Local Ollama or hosted Gemini embeddings
 - Local filesystem or persistent Supabase Storage
 - Optional access-code protection for public demo uploads
@@ -110,10 +112,20 @@ Redeploy the Render API once `ALLOWED_ORIGINS` contains the exact Vercel origin.
 | `GET` | `/documents/{id}/pages` | Read page-level evidence |
 | `POST` | `/documents/{id}/analysis` | Start or rerun structured tender analysis; access code protected |
 | `GET` | `/documents/{id}/analysis` | Read analysis state and evidence-backed findings |
+| `POST` | `/documents/{id}/assessment` | Compare a company profile to completed analysis; access code protected |
+| `GET` | `/documents/{id}/assessment` | Read saved assessment and submitted profile; access code protected |
 | `GET` | `/search?q=insurance` | Hybrid evidence search |
 | `GET` | `/embeddings/health` | Check the configured embedding provider |
 
 For protected operations send `X-Demo-Access-Code`. Public reads remain available so reviewers can inspect preloaded sample tenders without a code.
+
+## Bid assessment
+
+Select a processed document, complete **Analyze Tender**, then fill the company profile and run **Assess Bid / No Bid**. Save Profile keeps a reusable draft in this browser; running an assessment sends the profile to Gemini and persists a snapshot with the latest assessment for that document. Assessment reads require the demo code because they contain company information. This is a shared demo workspace, not separate user accounts. Do not submit confidential company information to a shared showcase.
+
+Gemini classifies each analyzed requirement as met, unmet, or unknown. Positive and negative matches must include a verbatim company-profile excerpt; missing evidence remains unknown. Requirement text and page citations come from the existing analysis. The server computes the score as met / total and evidence coverage as (met + unmet) / total. Eligibility, mandatory requirements, required documents and financial conditions are treated conservatively as required conditions. A confirmed required-condition gap yields No Bid. Unknown required conditions, coverage below 80%, or fewer than 75% matches yield Review Required. Otherwise the result is Bid. This is a provisional fit check based on analyzed clauses, not full compliance verification or a probability of winning; review original clauses, submission deadlines, and commercial risks separately.
+
+Reanalyzing or reprocessing invalidates the previous assessment. Concurrent analysis/reprocessing is blocked while an assessment runs. Interrupted assessment jobs become retryable on API restart. No new provider or environment variable is needed: the same `GEMINI_API_KEY` and `ANALYSIS_MODEL` are reused.
 
 ## Tests
 

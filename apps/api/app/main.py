@@ -13,8 +13,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import engine, get_session, init_db
-from app.models import Document, DocumentAnalysis, DocumentPage
+from app.models import Document, DocumentAnalysis, DocumentAssessment, DocumentPage
 from app.schemas import (
+    AssessmentRead,
+    CompanyProfile,
     DocumentAnalysisRead,
     DocumentRead,
     EmbeddingHealthRead,
@@ -24,6 +26,7 @@ from app.schemas import (
     SearchResultRead,
 )
 from app.services.analysis import analyze_document
+from app.services.assessment import assess_document
 from app.services.embeddings import EmbeddingUnavailableError, embed_query, embedding_health
 from app.services.pdf import process_document, validate_pdf
 from app.services.search import fuse_ranked_results, keyword_search, semantic_search
@@ -74,6 +77,12 @@ def require_demo_access(
     expected = settings.demo_access_code
     if expected and (not x_demo_access_code or not secrets.compare_digest(x_demo_access_code, expected)):
         raise HTTPException(status_code=401, detail="A valid demo access code is required")
+
+
+async def check_assessment_idle(document_id: str, session: AsyncSession) -> None:
+    assessment = await session.get(DocumentAssessment, document_id)
+    if assessment is not None and assessment.status in {"queued", "processing"}:
+        raise HTTPException(status_code=409, detail="Wait for the bid assessment to finish")
 
 
 @app.post("/documents", response_model=DocumentRead, status_code=status.HTTP_202_ACCEPTED)
@@ -160,11 +169,12 @@ async def delete_document(
     _: None = Depends(require_demo_access),
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    document = await session.get(Document, document_id)
+    document = await session.scalar(select(Document).where(Document.id == document_id).with_for_update())
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
     if document.status in {"queued", "processing"}:
         raise HTTPException(status_code=409, detail="Wait for processing to finish before deleting")
+    await check_assessment_idle(document_id, session)
 
     storage_key = document.storage_key or f"{document_id}/original.pdf"
     await delete_pdf(storage_key)
@@ -180,17 +190,23 @@ async def reprocess_document(
     _: None = Depends(require_demo_access),
     session: AsyncSession = Depends(get_session),
 ) -> Document:
-    document = await session.get(Document, document_id)
+    document = await session.scalar(select(Document).where(Document.id == document_id).with_for_update())
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
     if document.status in {"queued", "processing"}:
         raise HTTPException(status_code=409, detail="Document is already being processed")
+    await check_assessment_idle(document_id, session)
 
     storage_key = document.storage_key or f"{document_id}/original.pdf"
 
     existing_analysis = await session.get(DocumentAnalysis, document_id)
     if existing_analysis is not None:
+        if existing_analysis.status in {"queued", "processing"}:
+            raise HTTPException(status_code=409, detail="Wait for tender analysis to finish")
         await session.delete(existing_analysis)
+    existing_assessment = await session.get(DocumentAssessment, document_id)
+    if existing_assessment is not None:
+        await session.delete(existing_assessment)
     document.status = "queued"
     document.error_message = None
     await session.commit()
@@ -236,15 +252,19 @@ async def start_document_analysis(
     _: None = Depends(require_demo_access),
     session: AsyncSession = Depends(get_session),
 ) -> DocumentAnalysis:
-    document = await session.get(Document, document_id)
+    document = await session.scalar(select(Document).where(Document.id == document_id).with_for_update())
     if document is None:
         raise HTTPException(status_code=404, detail="Document not found")
     if document.status != "ready":
         raise HTTPException(status_code=409, detail="Wait for document processing to finish")
+    await check_assessment_idle(document_id, session)
 
     analysis = await session.get(DocumentAnalysis, document_id)
     if analysis is not None and analysis.status in {"queued", "processing"}:
         raise HTTPException(status_code=409, detail="Tender analysis is already running")
+    assessment = await session.get(DocumentAssessment, document_id)
+    if assessment is not None:
+        await session.delete(assessment)
     if analysis is None:
         analysis = DocumentAnalysis(document_id=document_id)
         session.add(analysis)
@@ -256,6 +276,49 @@ async def start_document_analysis(
     await session.refresh(analysis)
     background_tasks.add_task(analyze_document, document_id)
     return analysis
+
+
+@app.get("/documents/{document_id}/assessment", response_model=AssessmentRead)
+async def get_assessment(
+    document_id: str,
+    _: None = Depends(require_demo_access),
+    session: AsyncSession = Depends(get_session),
+) -> DocumentAssessment | AssessmentRead:
+    if await session.get(Document, document_id) is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    assessment = await session.get(DocumentAssessment, document_id)
+    return assessment or AssessmentRead(document_id=document_id, status="not_started")
+
+
+@app.post("/documents/{document_id}/assessment", response_model=AssessmentRead, status_code=202)
+async def start_assessment(
+    document_id: str,
+    profile: CompanyProfile,
+    background_tasks: BackgroundTasks,
+    _: None = Depends(require_demo_access),
+    session: AsyncSession = Depends(get_session),
+) -> DocumentAssessment:
+    document = await session.scalar(select(Document).where(Document.id == document_id).with_for_update())
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    analysis = await session.get(DocumentAnalysis, document_id)
+    if document.status != "ready" or analysis is None or analysis.status != "ready" or not analysis.content:
+        raise HTTPException(status_code=409, detail="Complete Analyze Tender before running a bid assessment")
+    await check_assessment_idle(document_id, session)
+    assessment = await session.get(DocumentAssessment, document_id)
+    if assessment is None:
+        assessment = DocumentAssessment(document_id=document_id)
+        session.add(assessment)
+    assessment.profile = profile.model_dump()
+    assessment.status = "queued"
+    assessment.error_message = None
+    assessment.content = None
+    assessment.model = settings.analysis_model
+    snapshot = analysis.content
+    await session.commit()
+    await session.refresh(assessment)
+    background_tasks.add_task(assess_document, document_id, snapshot)
+    return assessment
 
 
 @app.get("/search", response_model=list[SearchResultRead])

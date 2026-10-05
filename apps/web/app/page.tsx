@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
+import AssessmentPanel from "./assessment-panel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const MAX_UPLOAD_MB = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ?? "10");
@@ -521,6 +522,11 @@ export default function Home() {
                 </div>
               ))}
             </section>
+          )}
+          {selectedId && (
+            <AssessmentPanel key={selectedId} apiUrl={API_URL} documentId={selectedId}
+              accessCode={accessCode} analysisReady={analysis?.document_id === selectedId && analysis.status === "ready"}
+              onCitation={setTargetPage} />
           )}
           <div className="pages">
             {pages.map((page) => (

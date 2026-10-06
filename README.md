@@ -116,6 +116,7 @@ Redeploy the Render API once `ALLOWED_ORIGINS` contains the exact Vercel origin.
 | `POST` | `/documents/{id}/assessment` | Compare a company profile to completed analysis; access code protected |
 | `GET` | `/documents/{id}/assessment` | Read saved assessment and submitted profile; access code protected |
 | `POST` | `/documents/{id}/questions` | Ask a document-scoped question with quote-checked citations; access code protected |
+| `GET` | `/documents/{id}/report?include_company=true` | Download saved analysis and optional company assessment as PDF; access code protected |
 | `GET` | `/search?q=insurance` | Hybrid evidence search |
 | `GET` | `/embeddings/health` | Check the configured embedding provider |
 
@@ -140,6 +141,14 @@ Answers contain concise points and clickable page citations with source quotes. 
 If a completed company assessment exists, its saved profile and result are included as self-reported context; unsaved form changes are not used. Do not submit confidential details to the shared demo. Answers are temporary and not persisted. Provider calls are access-code protected when configured, with at most two simultaneous Q&A requests per API process. This is not a daily quota or a production rate limiter. Free-tier provider quotas still apply.
 
 Smoke test: ask a staffing question, open a citation, ask an unrelated question, then switch PDFs and confirm the answer resets. For company gaps, run an assessment first. Reprocessing clears the visible answer. Closing the page cancels the browser request but may not stop an already-started provider call.
+
+## Report export and interface
+
+The earthy-pastel workspace separates upload, tender analysis, company fit, Q&A, report export and source text with explicit section headings and tinted panels. The hero uses a locally hosted Unsplash architecture photograph; source and license are recorded in `apps/web/public/IMAGE_CREDITS.md` and attribution appears in the interface. No third-party image request is needed to render the page.
+
+After analysis completes, **Download PDF report** exports the saved analysis, source PDF page references, recommendation, match/coverage figures, requirement gaps, answer templates and submitted company snapshot. Untick **Include saved company assessment** for a tender-only brief. If no completed assessment exists, the report explicitly says none was included. An in-progress assessment blocks company export but not tender-only export. Q&A history and unsaved form edits are not exported.
+
+ReportLab renders the PDF locally without calling Gemini or adding a paid service. No database migration or new environment variables are needed; rebuild the API image to install the new Python dependency. Reports are access-code protected when configured, are returned with `Cache-Control: no-store`, and are not saved on the server. Exported company information is self-reported and sensitive: keep reports private. The PDF includes limitations and distinguishes source PDF page numbers from report page numbers. The bundled font covers Latin-script report content; full multilingual/RTL typography is not yet supported.
 
 ## Tests
 

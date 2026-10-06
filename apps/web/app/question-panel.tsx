@@ -59,7 +59,7 @@ export default function QuestionPanel({ apiUrl, documentId, accessCode, ready, o
   }
 
   return <section className="qa-panel" aria-labelledby="qa-title">
-    <span className="eyebrow">Evidence-based Q&A</span>
+    <span className="eyebrow">04 / A conversation with the evidence</span>
     <h3 id="qa-title">Ask this tender</h3>
     <p className="muted">Answers use only this PDF. Company comparisons use your last saved assessment, not unsaved form edits.</p>
     <form onSubmit={ask}>

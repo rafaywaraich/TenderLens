@@ -3,6 +3,7 @@
 import { ChangeEvent, FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import AssessmentPanel from "./assessment-panel";
 import QuestionPanel from "./question-panel";
+import ReportPanel from "./report-panel";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const MAX_UPLOAD_MB = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ?? "10");
@@ -294,24 +295,29 @@ export default function Home() {
 
   return (
     <main>
-      <header>
+      <header className="site-header">
         <div className="brand-mark">TL</div>
         <div>
-          <p className="eyebrow">RFP intelligence workspace</p>
+          <p className="eyebrow">Clarity before commitment</p>
           <h1>TenderLens</h1>
         </div>
+        <nav aria-label="Workspace navigation"><a href="#upload">Upload</a><a href="#workspace">Workspace</a><a href="#report">Report</a></nav>
+        <span className="demo-badge">Portfolio demo</span>
       </header>
 
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Ingestion milestone</p>
-          <h2>Turn dense tender packs into page-level evidence.</h2>
+      <section className="hero" id="upload">
+        <div className="hero-copy">
+          <p className="eyebrow">01 / A clearer starting point</p>
+          <h2>Big tender.<br /><em>Clearer picture.</em></h2>
           <p className="muted">
-            Upload a PDF to extract its text, preserve page references, and identify pages that need OCR.
+            From dense documents to grounded decisions. Extract evidence, understand the requirements, and find your company’s fit.
           </p>
+          <div className="hero-tags"><span>Page-level evidence</span><span>Company-fit insights</span><span>Exportable briefs</span></div>
+          <a className="photo-credit" href="https://unsplash.com/photos/brown-concrete-building-under-blue-sky-during-daytime-FcxDvNWEcWM" target="_blank" rel="noreferrer">Architecture by Edwin Chen / Unsplash ↗</a>
         </div>
         <form onSubmit={upload} className="upload-card">
           <div className="demo-notice">Free demo API may need up to a minute to wake up.</div>
+          <h3>Start with your tender</h3><p className="muted">One PDF. A more informed decision.</p>
           <label htmlFor="pdf">Tender PDF</label>
           <input id="pdf" type="file" accept="application/pdf,.pdf" onChange={chooseFile} />
           <label htmlFor="access-code">Demo access code</label>
@@ -331,9 +337,15 @@ export default function Home() {
         </form>
       </section>
 
+      <div className="workflow-strip" aria-label="Your tender workflow">
+        {["Upload & extract", "Understand the tender", "Check company fit", "Ask the evidence", "Export your brief"].map((step, i) =>
+          <div key={step}><span>{String(i + 1).padStart(2, "0")}</span><strong>{step}</strong></div>)}
+      </div>
+
       {error && <div className="error">{error}</div>}
 
       <section className="search-section">
+        <div className="section-intro"><span className="step-number">↗</span><div><span className="eyebrow">Find the evidence</span><h3>Less scrolling. More finding.</h3><p>Search across your uploaded documents by keyword or meaning.</p></div></div>
         <form className="search-bar" onSubmit={search}>
           <input
             aria-label="Search tender pages"
@@ -380,7 +392,7 @@ export default function Home() {
         )}
       </section>
 
-      <section className="workspace">
+      <section className="workspace" id="workspace">
         <aside>
           <div className="section-title">
             <h3>Documents</h3>
@@ -409,7 +421,7 @@ export default function Home() {
 
         <section className="pages-panel">
           <div className="section-title">
-            <h3>Extracted pages</h3>
+            <div><span className="eyebrow">02 / Tender workspace</span><h3>{selectedDocument?.filename ?? "Select a tender"}</h3></div>
             <div className="section-actions">
               {selectedId && (
                 <>
@@ -473,10 +485,10 @@ export default function Home() {
             </div>
           )}
           {analysis?.status === "ready" && analysis.content && (
-            <section className="analysis-panel">
+            <section className="analysis-panel" id="tender-analysis">
               <div className="analysis-heading">
                 <div>
-                  <span className="eyebrow">Tender intelligence</span>
+                  <span className="eyebrow">02 / Understand the tender</span>
                   <h3>{analysis.content.overview.label}</h3>
                   <p>{analysis.content.overview.detail}</p>
                 </div>
@@ -532,6 +544,9 @@ export default function Home() {
           {selectedId && <QuestionPanel key={`questions-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
             accessCode={accessCode} ready={selectedDocument?.status === "ready"}
             onCitation={setTargetPage} />}
+          {selectedId && <ReportPanel key={`report-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
+            accessCode={accessCode} analysisReady={analysis?.document_id === selectedId && analysis.status === "ready"} />}
+          {selectedId && <div className="source-heading" id="source-pages"><span className="eyebrow">06 / Original evidence</span><h3>Back to the source</h3><p className="muted">Extracted page text. Check the original wording behind every finding.</p></div>}
           <div className="pages">
             {pages.map((page) => (
               <article className="page" id={`page-${page.page_number}`} key={page.page_number}>
@@ -551,6 +566,7 @@ export default function Home() {
           </div>
         </section>
       </section>
+      <footer className="site-footer"><span>TenderLens / Evidence before decisions.</span><span>Shared demo · AI-assisted, human-reviewed</span></footer>
     </main>
   );
 }

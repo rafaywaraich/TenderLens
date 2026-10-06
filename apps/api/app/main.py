@@ -26,6 +26,8 @@ from app.schemas import (
     SearchResultRead,
     QuestionRequest,
     QuestionAnswerRead,
+    AnalysisContent,
+    AssessmentContent,
 )
 from app.services.analysis import analyze_document
 from app.services.assessment import assess_document
@@ -34,6 +36,7 @@ from app.services.pdf import process_document, validate_pdf
 from app.services.search import fuse_ranked_results, keyword_search, semantic_search
 from app.services.storage import delete_pdf, store_pdf
 from app.services.qa import QuestionUnavailableError, generate_answer, retrieve_question_pages
+from app.services.report import build_report
 
 
 settings = get_settings()
@@ -323,6 +326,37 @@ async def start_assessment(
     await session.refresh(assessment)
     background_tasks.add_task(assess_document, document_id, snapshot)
     return assessment
+
+
+@app.get("/documents/{document_id}/report")
+async def download_report(
+    document_id: str,
+    include_company: bool = True,
+    _: None = Depends(require_demo_access),
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    analysis = await session.get(DocumentAnalysis, document_id)
+    if document.status != "ready" or analysis is None or analysis.status != "ready" or not analysis.content:
+        raise HTTPException(status_code=409, detail="Complete tender analysis before downloading a report")
+    assessment = await session.get(DocumentAssessment, document_id) if include_company else None
+    if assessment is not None and assessment.status in {"queued", "processing"}:
+        raise HTTPException(status_code=409, detail="Wait for the company assessment to finish or export a tender-only report")
+    completed = assessment is not None and assessment.status == "ready" and assessment.content
+    args = dict(filename=document.filename, page_count=document.page_count,
+        analysis=AnalysisContent.model_validate(analysis.content),
+        analysis_updated=str(analysis.updated_at),
+        assessment=AssessmentContent.model_validate(assessment.content) if completed else None,
+        profile=CompanyProfile.model_validate(assessment.profile) if completed and assessment.profile else None,
+        assessment_updated=str(assessment.updated_at) if completed else None)
+    await session.rollback()
+    pdf = await asyncio.to_thread(build_report, **args)
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="tenderlens-report.pdf"',
+        "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+    })
 
 
 @app.post("/documents/{document_id}/questions", response_model=QuestionAnswerRead)

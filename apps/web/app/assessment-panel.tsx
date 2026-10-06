@@ -193,9 +193,9 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
   }
 
   return (
-    <section className="bid-panel">
+    <section className="bid-panel" id="company-fit">
       <div className="bid-title">
-        <span className="eyebrow">Bid decision copilot</span>
+        <span className="eyebrow">03 / Your company, this opportunity</span>
         <h3>Does this tender fit your company?</h3>
         <p>Compare the analyzed requirements with your company profile. Missing information stays unverified.</p>
       </div>

@@ -20,6 +20,7 @@ export default function ReportPanel({ apiUrl, documentId, accessCode, analysisRe
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
+        if (response.status === 401) throw new Error("Enter a valid demo access code in the upload card at the top, then retry the download.");
         throw new Error(typeof body?.detail === "string" ? body.detail : "Could not download the report.");
       }
       const blob = await response.blob();
@@ -33,7 +34,7 @@ export default function ReportPanel({ apiUrl, documentId, accessCode, analysisRe
     } finally { if (!abort.signal.aborted) setBusy(false); }
   }
   return <section className="report-panel" id="report" aria-labelledby="report-title">
-    <div className="section-intro"><span className="step-number">05</span><div>
+    <div className="section-intro"><span className="step-number" aria-hidden="true">↓</span><div>
       <span className="eyebrow">Take it with you</span><h3 id="report-title">Your decision, documented.</h3>
       <p>Download a clean PDF brief with saved findings, source page references and company-fit guidance.</p>
     </div></div>
@@ -47,7 +48,7 @@ export default function ReportPanel({ apiUrl, documentId, accessCode, analysisRe
         <button className="primary-button" disabled={!analysisReady || busy} onClick={download} type="button">
           {busy ? "Preparing PDF…" : "↓ Download PDF report"}</button>
         {!analysisReady && <p className="bid-notice">Complete Analyze tender to enable export.</p>}
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && <div className="error" role="alert"><p>{error}</p><a href="#access-code" onClick={() => document.getElementById("access-code")?.focus()}>Go to demo access code ↑</a></div>}
       </div>
     </div>
   </section>;

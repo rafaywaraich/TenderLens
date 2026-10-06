@@ -144,6 +144,17 @@ input[type=file]::file-selector-button { border: 0; padding: 9px 10px; border-ra
 .requirement-gap-cell dt { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 10px; }
 .requirement-gap-cell dd { margin: 0; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .submitted-field { display: grid; gap: 4px; margin-bottom: 12px; }.submitted-field:last-child { margin-bottom: 0; }.submitted-field strong { font-size: 11px; color: var(--muted); }
+.entered-details summary { display: grid; gap: 8px; cursor: pointer; list-style: none; white-space: normal; border-radius: 6px; }
+.entered-details summary::-webkit-details-marker { display: none; }
+.entered-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--accent); font-weight: 700; font-size: 11px; }
+.entered-chevron { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid var(--line); border-radius: 50%; font-size: 18px; }
+.entered-field-labels { color: var(--muted); font-size: 11px; font-weight: 700; }
+.entered-preview { color: var(--text); font-size: 12px; line-height: 1.7; }
+.entered-expanded-label { display: none; }
+.entered-details[open] .entered-expanded-label { display: inline; }
+.entered-details[open] .entered-collapsed-label,.entered-details[open] .entered-preview { display: none; }
+.entered-details[open] .entered-chevron { transform: rotate(180deg); }
+.entered-full { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .gap-explanation.unknown { background: #f7efdc; }.gap-explanation.unmet { background: #faeae2; }.gap-explanation.met { background: #eef3e8; }
 .answer-template { background: #eeebf2; }.comparison .template-note { font-size: 10px; margin-bottom: 0; color: var(--muted); }
 .comparison-actions { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 12px; }

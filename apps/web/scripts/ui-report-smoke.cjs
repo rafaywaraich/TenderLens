@@ -23,9 +23,10 @@ const { chromium } = require('playwright');
     summary: 'Relevant capabilities. Confirm the financial security requirements.', comparisons: [{
       requirement_id: 'eligibility:0', category: 'eligibility', label: finding.label, requirement: finding.detail,
       mandatory: true, status: 'unknown', reason: 'Supporting records need review.', profile_evidence: '',
-      profile_fields: ['registrations'], entered_information: [{field:'registrations',value: profile.registrations}],
+      profile_fields: ['registrations'], entered_information: [{field:'registrations',value: profile.registrations + ' Evidence details. '.repeat(30) + ' END OF FULL ENTRY'}],
       missing_information: 'Provide identifiers and supporting records.', suggested_input: 'NTN: [identifier]; GST: [identifier].', page_numbers: [1],
     }] }};
+  assessment.content.comparisons.push({ ...assessment.content.comparisons[0], requirement_id: 'eligibility:1', label: 'Second comparison' });
   try {
     for (const width of [1440, 390]) {
       const page = await browser.newPage({ viewport: { width, height: 1000 } });
@@ -51,6 +52,21 @@ const { chromium } = require('playwright');
       const downloadButton = page.getByRole('button',{name:'↓ Download PDF report'});
       await downloadButton.waitFor();
       await page.waitForFunction(() => !document.querySelector('#report button').disabled);
+      assert.ok(await page.evaluate(() => !!(document.querySelector('#report').compareDocumentPosition(document.querySelector('.analysis-panel')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'Report is before analysis');
+      assert.ok(await page.evaluate(() => document.querySelector('.pages-panel > .section-title').nextElementSibling.id === 'report'), 'Report directly follows tender heading');
+      const entries = page.locator('.entered-details');
+      await entries.first().waitFor();
+      assert.equal(await entries.count(), 2);
+      assert.equal(await page.locator('.entered-details[open]').count(), 0, 'Entries default collapsed');
+      assert.ok((await entries.first().locator('.entered-preview').innerText()).length < 180);
+      assert.equal(await entries.first().locator('.entered-full').isVisible(), false);
+      await entries.first().locator('summary').click();
+      assert.equal(await entries.first().getAttribute('open'), '');
+      assert.equal(await entries.nth(1).getAttribute('open'), null, 'Other comparison remains collapsed');
+      assert.ok((await entries.first().locator('.entered-full').innerText()).includes('END OF FULL ENTRY'));
+      await entries.first().locator('summary').focus();
+      await page.keyboard.press('Enter');
+      assert.equal(await entries.first().getAttribute('open'), null, 'Keyboard collapse works');
       await page.locator('#access-code').fill('demo-code');
       await page.locator('.report-option input').uncheck();
       const downloadEvent = page.waitForEvent('download');
@@ -76,6 +92,6 @@ const { chromium } = require('playwright');
       assert.deepEqual(errors,[]);
       await page.close();
     }
-    console.log('PASS: desktop/mobile layout, no overflow, single panels, editable profile, protected report download, tender-only option.');
+    console.log('PASS: report below tender heading; entries collapsed by default, independently expandable, keyboard collapsible; desktop/mobile download and editing.');
   } finally { await browser.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -77,6 +77,24 @@ function enteredInformation(item: Comparison, submitted: Profile | null) {
   return fields.map((field) => ({ field, value: submitted?.[field] ?? "" }));
 }
 
+function EnteredEvidence({ item, submitted }: { item: Comparison; submitted: Profile | null }) {
+  const entries = enteredInformation(item, submitted);
+  const overview = entries.map(({ value }) => value.trim()).filter(Boolean).join(" · ").replace(/\s+/g, " ");
+  const preview = overview ? `${overview.slice(0, 160)}${overview.length > 160 ? "…" : ""}` : "No information provided.";
+  return <details className="entered-details">
+    <summary>
+      <span className="entered-toggle"><span className="entered-collapsed-label">Show full entry</span><span className="entered-expanded-label">Hide full entry</span><span className="entered-chevron" aria-hidden="true">⌄</span></span>
+      <span className="entered-field-labels">{entries.map(({ field }) => fieldLabel(field)).join(" · ")}</span>
+      <span className="entered-preview">{preview}</span>
+    </summary>
+    <div className="entered-full">{entries.map(({ field, value }) => (
+      <div className="submitted-field" key={field}>
+        <strong>{fieldLabel(field)}</strong><span>{value || "Not provided"}</span>
+      </div>
+    ))}</div>
+  </details>;
+}
+
 export default function AssessmentPanel({ apiUrl, documentId, accessCode, analysisReady, onCitation }: {
   apiUrl: string;
   documentId: string;
@@ -255,12 +273,7 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
                   <div className="requirement-gap-cell">
                     <dt>What you entered</dt>
                     <dd>
-                      {enteredInformation(item, assessment?.profile ?? null).map(({ field, value }) => (
-                        <div className="submitted-field" key={field}>
-                          <strong>{fieldLabel(field)}</strong>
-                          <span>{value || "Not provided"}</span>
-                        </div>
-                      ))}
+                      <EnteredEvidence item={item} submitted={assessment?.profile ?? null} />
                     </dd>
                   </div>
                   <div className={`requirement-gap-cell gap-explanation ${item.status}`}>

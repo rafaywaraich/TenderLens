@@ -458,6 +458,8 @@ export default function Home() {
               <span>{pages.length}</span>
             </div>
           </div>
+          {selectedId && <ReportPanel key={`report-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
+            accessCode={accessCode} analysisReady={analysis?.document_id === selectedId && analysis.status === "ready"} />}
           {!selectedId && <p className="empty centered">Select a document to inspect its page text.</p>}
           {selectedId && pages.length === 0 && (
             <p className="empty centered">Processing the document or no extractable pages found yet.</p>
@@ -536,16 +538,14 @@ export default function Home() {
               ))}
             </section>
           )}
+          {selectedId && <QuestionPanel key={`questions-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
+            accessCode={accessCode} ready={selectedDocument?.status === "ready"}
+            onCitation={setTargetPage} />}
           {selectedId && (
             <AssessmentPanel key={`assessment-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
               accessCode={accessCode} analysisReady={analysis?.document_id === selectedId && analysis.status === "ready"}
               onCitation={setTargetPage} />
           )}
-          {selectedId && <QuestionPanel key={`questions-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
-            accessCode={accessCode} ready={selectedDocument?.status === "ready"}
-            onCitation={setTargetPage} />}
-          {selectedId && <ReportPanel key={`report-${selectedId}`} apiUrl={API_URL} documentId={selectedId}
-            accessCode={accessCode} analysisReady={analysis?.document_id === selectedId && analysis.status === "ready"} />}
           {selectedId && <div className="source-heading" id="source-pages"><span className="eyebrow">06 / Original evidence</span><h3>Back to the source</h3><p className="muted">Extracted page text. Check the original wording behind every finding.</p></div>}
           <div className="pages">
             {pages.map((page) => (

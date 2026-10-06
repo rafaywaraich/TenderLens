@@ -124,6 +124,12 @@ input[type=file]::file-selector-button { border: 0; padding: 9px 10px; border-ra
 .profile-note { margin: 16px 0; font-size: 11px; color: var(--muted); line-height: 1.8; }
 .profile-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .bid-notice { margin: 14px 24px; color: #795d2f; font-size: 12px; line-height: 1.7; }
+.warning-notice { display: flex; align-items: flex-start; gap: 12px; margin: 18px 0; padding: 16px 18px; border: 1px solid #c2964b; border-left: 5px solid #95651f; border-radius: 10px; background: #f9e7be; color: #634210; }
+.warning-icon { flex: 0 0 22px; margin-top: 1px; }
+.warning-title { display: block; font-size: 13px; line-height: 1.5; margin-bottom: 5px; }
+.warning-message { font-size: 12px; line-height: 1.7; }
+.warning-message a { display: block; width: fit-content; margin-top: 8px; font-weight: 700; text-decoration: underline; color: #634210; }
+.bid-panel > .warning-notice { margin-left: 24px; margin-right: 24px; }
 .assessment-result { padding: 0 24px 24px; }
 .decision { padding: 24px; border: 1px solid #d7c397; border-radius: 14px; background: #f0e6cc; }
 .decision.bid { background: #e2ebd8; border-color: #b9cba9; }.decision.no_bid { background: #f0dcd3; border-color: #cda798; }

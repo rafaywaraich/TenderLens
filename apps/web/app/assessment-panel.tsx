@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import WarningNotice from "./warning-notice";
 
 type Profile = {
   name: string;
@@ -244,8 +245,8 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
           </div>
         </form>
       </details>
-      {!analysisReady && <p className="bid-notice">Complete Analyze Tender first to enable assessment.</p>}
-      {authRequired && <p className="bid-notice">Enter the demo access code above to load or run a saved assessment.</p>}
+      {!analysisReady && <WarningNotice title="Company assessment is locked">Complete <strong>Analyze tender</strong> first to enable assessment.</WarningNotice>}
+      {authRequired && <WarningNotice title="Demo access code required">Enter a valid code in the upload card to load or run a saved assessment.</WarningNotice>}
       {error && <div className="analysis-failed" role="alert">{error}</div>}
       {running && <div className="analysis-progress" role="status"><span className="analysis-pulse" /><div><strong>Comparing company capabilities</strong><p>Checking requirements, evidence, and mandatory gaps.</p></div></div>}
       {assessment?.status === "failed" && <div className="analysis-failed"><strong>Assessment needs another attempt</strong><p>{assessment.error_message}</p></div>}
@@ -257,7 +258,7 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
             <p>{result.summary}</p>
             <div className="decision-metrics"><strong>{result.score}%<small>Requirements matched</small></strong><strong>{result.coverage}%<small>Evidence coverage</small></strong></div>
           </div>
-          {draftChanged && <p className="bid-notice">This result uses the submitted profile snapshot. Reassess to apply your current profile.</p>}
+          {draftChanged && <WarningNotice title="This result does not include your latest edits">It uses the submitted profile snapshot. Reassess company fit to apply your current profile.</WarningNotice>}
           <details className="profile-snapshot"><summary>View profile used for this result</summary>{FIELDS.map(({ key, label }) => <p key={key}><strong>{label}: </strong>{assessment?.profile?.[key] || "Not provided"}</p>)}</details>
           <p className="profile-note">Match score = met requirements ÷ all assessed requirements. Coverage = met or unmet ÷ all requirements. Required-condition gaps block a Bid; unknown required conditions need review. These are provisional matches to the analysis, not a probability of winning. Review original clauses, deadlines, and commercial risks.</p>
           <div className="comparison-list">
@@ -294,7 +295,7 @@ export default function AssessmentPanel({ apiUrl, documentId, accessCode, analys
                 </div>
               </article>
             ))}
-            {!result.comparisons.length && <p className="bid-notice">No assessable requirements were found. Review the original tender.</p>}
+            {!result.comparisons.length && <WarningNotice title="No assessable requirements found">Review the original tender before making a bid decision.</WarningNotice>}
           </div>
         </div>
       )}

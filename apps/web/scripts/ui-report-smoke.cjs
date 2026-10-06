@@ -31,13 +31,14 @@ const { chromium } = require('playwright');
     for (const width of [1440, 390]) {
       const page = await browser.newPage({ viewport: { width, height: 1000 } });
       const errors = [];
+      let analysisReady = false;
       page.on('pageerror', error => errors.push(error.message));
       let includeCompany = null;
       await page.route('**/documents**', async route => {
         const url = new URL(route.request().url());
         let body;
         if (url.pathname === '/documents') body = [{ id:'demo',filename:'Office equipment tender.pdf',size_bytes:1024,page_count:1,status:'ready',embedding_status:'ready' }];
-        else if (url.pathname.endsWith('/analysis')) body = analysis;
+        else if (url.pathname.endsWith('/analysis')) body = analysisReady ? analysis : { ...analysis, status: 'not_started', content: null };
         else if (url.pathname.endsWith('/assessment')) body = assessment;
         else if (url.pathname.endsWith('/pages')) body = [{page_number:1,text:'Active NTN and GST registration are required.',char_count:44,ocr_required:false,extraction_method:'embedded',ocr_confidence:null}];
         else if (url.pathname.endsWith('/report')) {
@@ -49,9 +50,20 @@ const { chromium } = require('playwright');
       });
       await page.goto(process.env.TENDERLENS_TEST_URL || 'http://localhost:3005');
       await page.getByRole('button',{name:'Office equipment tender.pdf',exact:false}).click();
+      const warning = page.locator('#report .warning-notice');
+      await warning.waitFor();
+      assert.ok((await warning.innerText()).includes('Report download is locked'));
+      assert.equal(await warning.getAttribute('role'),'status');
+      assert.equal(await page.getByRole('button',{name:'↓ Download PDF report'}).isDisabled(),true);
+      await warning.getByRole('link',{name:'Go to Analyze tender ↑'}).click();
+      assert.equal(await page.locator('#analyze-tender').evaluate(el => el === document.activeElement),true);
+      analysisReady = true;
+      await page.reload();
+      await page.getByRole('button',{name:'Office equipment tender.pdf',exact:false}).click();
       const downloadButton = page.getByRole('button',{name:'↓ Download PDF report'});
       await downloadButton.waitFor();
       await page.waitForFunction(() => !document.querySelector('#report button').disabled);
+      assert.equal(await page.locator('#report .warning-notice').count(),0);
       assert.ok(await page.evaluate(() => !!(document.querySelector('#report').compareDocumentPosition(document.querySelector('.analysis-panel')) & Node.DOCUMENT_POSITION_FOLLOWING)), 'Report is before analysis');
       assert.ok(await page.evaluate(() => document.querySelector('.pages-panel > .section-title').nextElementSibling.id === 'report'), 'Report directly follows tender heading');
       const entries = page.locator('.entered-details');

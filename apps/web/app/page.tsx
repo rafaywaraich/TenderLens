@@ -426,6 +426,7 @@ export default function Home() {
               {selectedId && (
                 <>
                   <button
+                    id="analyze-tender"
                     className="analysis-button"
                     disabled={
                       analyzing ||

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import WarningNotice from "./warning-notice";
 
 export default function ReportPanel({ apiUrl, documentId, accessCode, analysisReady }: {
   apiUrl: string; documentId: string; accessCode: string; analysisReady: boolean;
@@ -47,7 +48,15 @@ export default function ReportPanel({ apiUrl, documentId, accessCode, analysisRe
         <p className="profile-note">Exports the saved snapshot, not unsaved edits. Company details are self-reported. Keep downloaded reports private. Q&A history is not included.</p>
         <button className="primary-button" disabled={!analysisReady || busy} onClick={download} type="button">
           {busy ? "Preparing PDF…" : "↓ Download PDF report"}</button>
-        {!analysisReady && <p className="bid-notice">Complete Analyze tender to enable export.</p>}
+        {!analysisReady && <WarningNotice title="Report download is locked">
+          Complete <strong>Analyze tender</strong> first. Download becomes available when the analysis finishes.
+          <a href="#analyze-tender" onClick={(event) => {
+            event.preventDefault();
+            const button = document.getElementById("analyze-tender");
+            button?.scrollIntoView({ behavior: "smooth", block: "center" });
+            button?.focus({ preventScroll: true });
+          }}>Go to Analyze tender ↑</a>
+        </WarningNotice>}
         {error && <div className="error" role="alert"><p>{error}</p><a href="#access-code" onClick={() => document.getElementById("access-code")?.focus()}>Go to demo access code ↑</a></div>}
       </div>
     </div>

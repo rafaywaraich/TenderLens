@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import WarningNotice from "./warning-notice";
 
 type Answer = {
   status: "answered" | "partial" | "not_found";
@@ -74,13 +75,13 @@ export default function QuestionPanel({ apiUrl, documentId, accessCode, ready, o
       </div>
       <button disabled={!ready || busy || question.trim().length < 3}>{busy ? "Reviewing evidence…" : "Ask tender"}</button>
     </form>
-    {!ready && <p className="muted">Complete PDF processing before asking a question.</p>}
+    {!ready && <WarningNotice title="Questions are not available yet">Complete PDF processing before asking a question.</WarningNotice>}
     {busy && <p role="status" className="muted">Retrieving pages and checking source quotes. Free-tier requests may take a minute.</p>}
     {error && <p role="alert" className="error">{error}</p>}
     {answer && <div className="qa-answer" aria-live="polite">
       <h4>{answer.question}</h4>
-      {answer.status === "not_found" && <p>No supported answer found in the retrieved evidence. Try rephrasing or inspect the original PDF; this does not prove the information is absent from the whole tender.</p>}
-      {answer.status === "partial" && <p className="muted">Partial answer: some requested information could not be supported.</p>}
+      {answer.status === "not_found" && <WarningNotice title="No supported answer found">Try rephrasing or inspect the original PDF. This does not prove the information is absent from the whole tender.</WarningNotice>}
+      {answer.status === "partial" && <WarningNotice title="Partial answer — review the evidence">Some requested information could not be supported.</WarningNotice>}
       {answer.points.map((point, index) => <article className="finding" key={index}>
         <p>{point.text}</p>
         {point.citations.map((citation, n) => <div key={n}>
